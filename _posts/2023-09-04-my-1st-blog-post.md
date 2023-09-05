@@ -1,8 +1,5 @@
 # Using MongoDB Bulk Operations in Spring Data MongoDB
   
-Xingyue Li and Vishal Parikh
-
-  
 This article describes how we used MongoDB bulk operations in Spring Data MongoDB to improve the performance of our application significantly.
   
 ## Mixing MongoRepository and MongoTemplate
