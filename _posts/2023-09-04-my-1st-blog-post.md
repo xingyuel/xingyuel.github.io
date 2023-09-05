@@ -1,10 +1,12 @@
 # Using MongoDB Bulk Operations in Spring Data MongoDB
-  
-This article describes how we used MongoDB bulk operations in Spring Data MongoDB to improve the performance of our application significantly.
-  
+
+This article describes how we used MongoDB bulk operations in Spring Data MongoDB to improve the performance of our application significantly. When retiring 2864 products, using bulk operations is about 190 times faster than the original code.
+
 ## Mixing MongoRepository and MongoTemplate
 
-Like any other Spring Data framework, Spring Data MongoDB provides MongoRepository for CRUD operations. Although saveAll() allows us to do bulk insert in an ideal situation, this method will save the items one by one if the "_id" field of any item is not null. This causes significant performance downgrade. As a result, in our project we decided to implement bulk upsert using MongoTemplate and to implement other CRUD operations in our Repository interface.
+Like any other Spring Data framework, Spring Data MongoDB provides MongoRepository for CRUD operations. 
+Although saveAll() allows us to do bulk insert in an ideal situation, this method will save the items one by one 
+if the primary key field ( annotated with @ID ) of any item is not null. This causes significant performance downgrade. As a result, in our project we decided to implement bulk upsert using MongoTemplate and to implement other CRUD operations in our Repository interface.
 
 To take advantage of both MongoRepository and MongoTemplate, for our ***product*** MongoDB collection, the following interface shows the whole picture:
 
@@ -87,8 +89,8 @@ Here the 1st method is the same as the following native query:
 db.product.find( {"isDeleted": false}, {"_id": 1})
 ```
 
-please note that projection part, `{"_id": 1}`, may significantly improve performance because of 2 
-factors: 1. If a compound index exists (`key: { isDeleted: 1, _id: 1}`), MongoDB will not scan any document and will simply return documents only containing "_id", because “_id” is in the index . 2. Network traffic may be much lower.
+please note that projection part, `{"_id": 1}`, can significantly improve performance because of 2
+factors: 1. If a compound index exists (`key: { isDeleted: 1, _id: 1}`), MongoDB will not scan any document and will simply return documents only containing "_id", because it is in the index . 2. Network traffic will be much lower.
 
 The 2nd method in the above code snippet is essentially similar to the following:
 
@@ -114,7 +116,7 @@ void unpublishProducts(List<Integer> productIds) {
 
 Obviously, the above code snippet is not efficient because of 2 resons: 1. for each Product record the code calls MongoDB twice; 2. the code loops through Product records, instead of bulk updating. Now we only need to call the 2nd method in the above ProductRepository interface. This is much faster and the code is also cleaner.
 
-In addition to un-publishing products, we also need to publish products. Now publishing products can take advantage of our bulk upsert implementation. The following table shows the test results for publishing and unpublishing the same 2864 products:
+In addition to un-publishing / retiring products, we also need to publish products. Now publishing products can take advantage of our bulk upsert implementation. The following table shows the test results for publishing and unpublishing the same 2864 products:
 
 Processing Time (in seconds)
 
@@ -130,7 +132,7 @@ Notes:
 
 - For unpublishing products, because all product records are already in our MongoDB, we don’t need to get the products themselves. Therefore, it is all about MongoDB and the room for improvement is bigger.
 
-- For publishing products, we must make extra calls to get the product records themselves. Currently that REST call only allows GET, so in order to get all 2864 products, we must call the services multiple times to avoid the GET request being longer than 2048 characters. Based on our preliminary analysis, if we could get all 2864 products with one call, the improvement should be as good as 30 currently running pods or even better.
+- For publishing products, we must make extra calls to get the product records themselves. Currently, that REST service only allows GET calls, so in order to get all 2864 products, we must call the service multiple times to avoid the GET request being longer than 2048 characters. Based on our preliminary analysis, if we could get all 2864 products with one call, the improvement should be as good as 30 currently running pods or even better.
 
 ## Conclusion
 
