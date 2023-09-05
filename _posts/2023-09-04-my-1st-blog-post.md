@@ -130,7 +130,7 @@ Notes:
 
 - For unpublishing products, because all product records are already in our MongoDB, we don’t need to get the products themselves. Therefore, it is all about MongoDB and the room for improvement is bigger.
 
-- For publishing products, we must make extra calls to get the product records themselves. Currently that REST call only allows GET, so in order to get all 2864 products, we must call the services multiple times to avoid the GET request being longer than 2048 characters. Based on our preliminary analysis, if we could get all 2864 products with one call, the improvement should be as good as 30 currently running pods or even a little better.
+- For publishing products, we must make extra calls to get the product records themselves. Currently that REST call only allows GET, so in order to get all 2864 products, we must call the services multiple times to avoid the GET request being longer than 2048 characters. Based on our preliminary analysis, if we could get all 2864 products with one call, the improvement should be as good as 30 currently running pods or even better.
 
 ## Conclusion
 
