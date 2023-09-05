@@ -54,9 +54,9 @@ The data model, Product.java, is pretty much as follows:
 ```
 @Document
 public class Product {
-@Id
-private Integer productId;
-private String partNumber;
+    @Id
+    private Integer productId;
+    private String partNumber;
 
     .
     .
