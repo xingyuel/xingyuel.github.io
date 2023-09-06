@@ -4,8 +4,8 @@ This article describes how we used MongoDB bulk operations in Spring Data MongoD
 
 ## Mixing MongoRepository and MongoTemplate
 
-Like any other Spring Data framework, Spring Data MongoDB provides MongoRepository for CRUD operations. 
-Although saveAll() allows us to do bulk insert in an ideal situation, this method will save the items one by one 
+Like any other Spring Data framework, Spring Data MongoDB provides MongoRepository for CRUD operations.
+Although saveAll() allows us to do bulk insert in an ideal situation, this method will save the items one by one
 if the primary key field ( annotated with @ID ) of any item is not null. This causes significant performance downgrade. As a result, in our project we decided to implement bulk upsert using MongoTemplate and to implement other CRUD operations in our Repository interface.
 
 To take advantage of both MongoRepository and MongoTemplate, for our ***product*** MongoDB collection, the following interface shows the whole picture:
@@ -122,8 +122,8 @@ Processing Time (in seconds)
 
 |               | 1 pod w/o bulk operations | 30 pods w/o bulk operations | 1 pod w/ bulk operations |
 |---------------|:-------------------------:|:---------------------------:|:------------------------:|
-| Publish       |           59.07           |            1.98             |           3.8            |
-| Unpublish     |            69             |            9.27             |           0.36           |
+| Publish       |           63.47           |            6.38             |           3.8            |
+| Unpublish     |           73.4            |           13.67             |           0.36           |
 
 
 
@@ -132,7 +132,7 @@ Notes:
 
 - For unpublishing products, because all product records are already in our MongoDB, we don’t need to get the products themselves. Therefore, it is all about MongoDB and the room for improvement is bigger.
 
-- For publishing products, we must make extra calls to get the product records themselves. Currently, that REST service only allows GET calls, so in order to get all 2864 products, we must call the service multiple times to avoid the GET request being longer than 2048 characters. Based on our preliminary analysis, if we could get all 2864 products with one call, the improvement should be as good as 30 currently running pods or even better.
+- For publishing products, we must make extra calls to get the product records themselves. Currently, that REST service only allows GET calls, so in order to get all 2864 products, we must call the service multiple times to avoid the GET request being longer than 2048 characters. Based on our preliminary analysis, if we could get all 2864 products with one call, the improvement should be even better.
 
 ## Conclusion
 
