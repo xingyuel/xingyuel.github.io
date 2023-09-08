@@ -1,6 +1,6 @@
 # Using MongoDB Bulk Operations in Spring Data MongoDB
 
-This article describes how we used MongoDB bulk operations in Spring Data MongoDB to improve the performance of our application significantly. When retiring 2864 products, using bulk operations is about 190 times faster than the original code.
+This article describes how we used MongoDB bulk operations in Spring Data MongoDB to improve the performance of our application significantly. When un-publishing / retiring 2864 products, using bulk operations is about 140 times faster than the original code. Our tests prove that using bulk operations is even more important than distributing the processing to multiple pods using Kafka.
 
 ## Mixing MongoRepository and MongoTemplate
 
@@ -122,17 +122,15 @@ Processing Time (in seconds)
 
 |               | 1 pod w/o bulk operations | 30 pods w/o bulk operations | 1 pod w/ bulk operations |
 |---------------|:-------------------------:|:---------------------------:|:------------------------:|
-| Publish       |           63.47           |            6.38             |           3.8            |
-| Unpublish     |           73.4            |           13.67             |           0.36           |
+| Publish       |           57.67           |            6.54             |           4.08           |
+| Unpublish     |           74.6            |            8.38             |           0.52           |
 
 
 
 Notes:
 - Each item in the above table is the average value of 3 tests.
 
-- For unpublishing products, because all product records are already in our MongoDB, we don’t need to get the products themselves. Therefore, it is all about MongoDB and the room for improvement is bigger.
-
-- For publishing products, we must make extra calls to get the product records themselves. Currently, that REST service only allows GET calls, so in order to get all 2864 products, we must call the service multiple times to avoid the GET request being longer than 2048 characters. Based on our preliminary analysis, if we could get all 2864 products with one call, the improvement should be even better.
+- For publishing products with bulk operations, currently we must call another service 14 times for the 2864 products to avoid the request containing more than 2048 characters. On the average, the 14 calls take about 1.25 seconds. If we could get all 2864 products with one call, the improvement would be even better.
 
 ## Conclusion
 
