@@ -1,6 +1,6 @@
 # Using MongoDB Bulk Operations in Spring Data MongoDB
 
-This article describes how we used MongoDB bulk operations in Spring Data MongoDB to improve the performance of our application significantly. When un-publishing / retiring 2864 products, using bulk operations is about 140 times faster than the original code. Our tests prove that using bulk operations is even more important than distributing the processing to multiple pods using Kafka.
+This article describes how we used MongoDB bulk operations in Spring Data MongoDB to improve the performance of our application significantly. As a typical example, when stopping selling 2864 products under one category, using bulk operations is about 140 times faster than the original code. Our tests prove that using bulk operations is even more important than distributing the processing to multiple pods using Kafka.
 
 ## Mixing MongoRepository and MongoTemplate
 
@@ -76,9 +76,9 @@ public interface ProductRepository extends ProductDao, MongoRepository<Product, 
     @Query(value = "{ 'isDeleted' : false }", fields = "{ '_id' : 1}")
     List<Product> findAllNotDeletedProducts();
 
-    @Query("{ '_id' : {$in: ?0}}")                // filter part
-    @Update("{$set: {'isDeleted': true}}")        // update part
-    void unpublishProducts(List<Integer> productIds);
+    @Query("{ '_id' : {$in: ?0}}")                      // filter part
+    @Update("{$set: {'isDeleted': true}}")              // update part
+    void unpublishProducts(List<Integer> productIds);   // unpublishing means we should stop selling the product(s)
 
 }
 ```
@@ -90,7 +90,7 @@ db.product.find( {"isDeleted": false}, {"_id": 1})
 ```
 
 please note that projection part, `{"_id": 1}`, can significantly improve performance because of 2
-factors: 1. If a compound index exists (`key: { isDeleted: 1, _id: 1}`), MongoDB will not scan any document and will simply return documents only containing "_id", because it is in the index . 2. Network traffic will be much lower.
+factors: 1. If a compound index exists (`key: { isDeleted: 1, _id: 1}`), MongoDB will not scan any document and will simply return documents only containing "_id", because it is in the index. In other words, this is a covered query (https://www.mongodb.com/docs/manual/core/query-optimization/#covered-query). 2. Network traffic will be much lower.
 
 The 2nd method in the above code snippet is essentially similar to the following:
 
@@ -100,10 +100,10 @@ db.product.updateMany( {"_id": {$in: [1234, 2234]}}, {$set: {"isDeleted": true}}
 
 ## Performance Improvement after Using Bulk Operations
 
-Before we took advantage of MongoDB bulk operations, we essentially used the following logic to retire (soft delete) products:
+Before we took advantage of MongoDB bulk operations, we essentially used the following logic to soft-delete products:
 
 ```
-void unpublishProducts(List<Integer> productIds) {
+void unpublishProducts(List<Integer> productIds) {      // unpublishing means we should stop selling the product(s)
     productIds.forEach(id -> {
         Product productFromDB = productService.findProductById(id);
             if (productFromDB != null) {
@@ -116,7 +116,7 @@ void unpublishProducts(List<Integer> productIds) {
 
 Obviously, the above code snippet is not efficient because of 2 resons: 1. for each Product record the code calls MongoDB twice; 2. the code loops through Product records, instead of bulk updating. Now we only need to call the 2nd method in the above ProductRepository interface. This is much faster and the code is also cleaner.
 
-In addition to un-publishing / retiring products, we also need to publish products. Now publishing products can take advantage of our bulk upsert implementation. The following table shows the test results for publishing and unpublishing the same 2864 products:
+In addition to un-publishing (a business term meaning to stop selling) the product, we also need to publish (another term meaning to prepare it for sale) the product. Now publishing products can take advantage of our bulk upsert implementation. The following table shows the test results for publishing and unpublishing the same 2864 products:
 
 Processing Time (in seconds)
 
