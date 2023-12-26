@@ -1,6 +1,6 @@
 # Using MongoDB Bulk Operations in Spring Data MongoDB
 
-This article describes how we used MongoDB bulk operations in Spring Data MongoDB to improve the performance of our application significantly. As a typical example, when stopping selling 2864 products under one category, using bulk operations is about 140 times faster than the original code. Our tests prove that using bulk operations is even more important than distributing the processing to multiple pods using Kafka.
+This article describes how we used MongoDB bulk operations in Spring Data MongoDB to improve the performance of our application significantly. As a typical example, when stopping selling 2864 products under one category, using bulk operations is about 140 times faster than the original code. If we need to stop selling more products, the improvement can be even greater. Our tests prove that using bulk operations is even more important than distributing the processing to multiple pods using Kafka.
 
 ## Mixing MongoRepository and MongoTemplate
 
@@ -51,6 +51,8 @@ public class ProductDaoImpl implements ProductDao {
 }
 ```
 
+The above bulkUpsert() implementation actually generates a native MongoDB bulkWrite() call (https://www.mongodb.com/docs/manual/reference/method/db.collection.bulkWrite/) and one or multiple replaceOne() calls will be included in the bulkWrite() call. Please note each replaceOne() call will perform an upsert operation.
+
 The data model, Product.java, is pretty much as follows:
 
 ```
@@ -68,7 +70,7 @@ public class Product {
 
 ### Implementing other CRUD methods
 
-The following code snippet shows how we implement some CRUD methods:
+The following code snippet shows how we implement some other CRUD methods:
 
 ```
 public interface ProductRepository extends ProductDao, MongoRepository<Product, Integer> {
@@ -100,7 +102,9 @@ db.product.updateMany( {"_id": {$in: [1234, 2234]}}, {$set: {"isDeleted": true}}
 
 ## Performance Improvement after Using Bulk Operations
 
-Before we took advantage of MongoDB bulk operations, we essentially used the following logic to soft-delete products:
+### Benchmark tests
+
+Before we took advantage of MongoDB bulk operations, in the old code base we essentially used the following logic to soft-delete products:
 
 ```
 void unpublishProducts(List<Integer> productIds) {      // unpublishing means we should stop selling the product(s)
@@ -113,10 +117,11 @@ void unpublishProducts(List<Integer> productIds) {      // unpublishing means we
     });
 }
 ```
+At first glance, the above implementation seems fine. But careful analysis will reveal two problems: 1. for each Product record the Java code calls MongoDB twice, getting and saving the record, respectively; 2. the code loops through Product records, instead of bulk updating. On the other hand for our business requirement, when we need to stop selling a product we simply soft delete that product. As a result, calling the 2nd method in the above ProductRepository interface is the best choice.
 
-Obviously, the above code snippet is not efficient because of 2 resons: 1. for each Product record the code calls MongoDB twice; 2. the code loops through Product records, instead of bulk updating. Now we only need to call the 2nd method in the above ProductRepository interface. This is much faster and the code is also cleaner.
+For the old implementation, if we need to stop selling N products, we must call MongoDB 2 * N times. For our benchmark test, here N is 2864, but in reality N could easily become 50,000 or bigger. However, in the new implementation, no matter how many products we need to soft-delete we always call MongoDB onece. In other words, the performance increase can easily exceed the 140x we mentioned in paragraph 1.
 
-In addition to un-publishing (a business term meaning to stop selling) the product, we also need to publish (another term meaning to prepare it for sale) the product. Now publishing products can take advantage of our bulk upsert implementation. The following table shows the test results for publishing and unpublishing the same 2864 products:
+In addition to un-publishing (a business term meaning to stop selling) products, we also need to publish (another term meaning to prepare it for sale) new products. Now publishing products can take advantage of our bulk upsert implementation. The following table shows the test results for publishing and unpublishing the same 2864 products:
 
 Processing Time (in seconds)
 
@@ -131,6 +136,10 @@ Notes:
 - Each item in the above table is the average value of 3 tests.
 
 - For publishing products with bulk operations, currently we must call another service 14 times for the 2864 products to avoid the request containing more than 2048 characters. On the average, the 14 calls take about 1.25 seconds. If we could get all 2864 products with one call, the improvement would be even better.
+
+### Batch process in production
+
+In addition to processing real time events related to the product status, we also batch process the product data from a legacy system. Currently, we maintain more than 5.5 million products. Before we moved to MongoDB bulk operations, processing these 5.5 million products took more than 5 hours, but now it always takes less than 20 minutes, the fastest one only 17 minutes. Roughly it is 15 times faster and all products are included.
 
 ## Conclusion
 
