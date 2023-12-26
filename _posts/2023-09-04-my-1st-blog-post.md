@@ -119,7 +119,7 @@ void unpublishProducts(List<Integer> productIds) {      // unpublishing means we
 ```
 At first glance, the above implementation seems fine. But careful analysis will reveal two problems: 1. for each Product record the Java code calls MongoDB twice, getting and saving the record, respectively; 2. the code loops through Product records, instead of bulk updating. On the other hand for our business requirement, when we need to stop selling a product we simply soft delete that product. As a result, calling the 2nd method in the above ProductRepository interface is the best choice.
 
-For the old implementation, if we need to stop selling N products, we must call MongoDB 2 * N times. For our benchmark test, here N is 2864, but in reality N could easily become 50,000 or bigger. However, in the new implementation, no matter how many products we need to soft-delete we always call MongoDB onece. In other words, the performance increase can easily exceed the 140x we mentioned in paragraph 1.
+For the old implementation, if we need to stop selling N products, we must call MongoDB 2 * N times. For our benchmark test, here N is 2864, but in reality N could easily become 50,000 or bigger. However, in the new implementation, no matter how many products we need to soft-delete we always call MongoDB once. In other words, the performance increase can easily exceed the 140x we mentioned in the 1st paragraph.
 
 In addition to un-publishing (a business term meaning to stop selling) products, we also need to publish (another term meaning to prepare it for sale) new products. Now publishing products can take advantage of our bulk upsert implementation. The following table shows the test results for publishing and unpublishing the same 2864 products:
 
