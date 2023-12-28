@@ -36,9 +36,9 @@ public class ProductDaoImpl implements ProductDao {
 
     @Override
     @Retryable(retryFor = Exception.class, maxAttempts = 4, backoff = @Backoff(delay = 2000, maxDelay = 16000, multiplier = 2))
-    public void bulkUpsert(Collection<Product> products) {
+    public BulkWriteResult bulkUpsert(Collection<Product> products) {
         if (products == null || products.isEmpty())
-            return;
+            return BulkWriteResult.acknowledged(0, 0, 0, 0, List.of(), List.of());
 
         BulkOperations bulkOperations = mongoTemplate.bulkOps(BulkOperations.BulkMode.UNORDERED, Product.class);
         products.forEach(product -> {
@@ -46,12 +46,12 @@ public class ProductDaoImpl implements ProductDao {
             bulkOperations.replaceOne(query, product, FindAndReplaceOptions.options().upsert());
         });
 
-        bulkOperations.execute();
+        return bulkOperations.execute();
     }
 }
 ```
 
-The above bulkUpsert() implementation actually generates a native MongoDB bulkWrite() call (https://www.mongodb.com/docs/manual/reference/method/db.collection.bulkWrite/) and one or multiple replaceOne() calls will be included in the bulkWrite() call. Please note each replaceOne() call will perform an upsert operation.
+The above bulkUpsert() implementation actually generates a native MongoDB [bulkWrite() call](https://www.mongodb.com/docs/manual/reference/method/db.collection.bulkWrite/) and one or multiple replaceOne() calls will be included in the bulkWrite() call. Please note each replaceOne() call will perform an upsert operation.
 
 The data model, Product.java, is pretty much as follows:
 
@@ -92,7 +92,7 @@ db.product.find( {"isDeleted": false}, {"_id": 1})
 ```
 
 please note that projection part, `{"_id": 1}`, can significantly improve performance because of 2
-factors: 1. If a compound index exists (`key: { isDeleted: 1, _id: 1}`), MongoDB will not scan any document and will simply return documents only containing "_id", because it is in the index. In other words, this is a covered query (https://www.mongodb.com/docs/manual/core/query-optimization/#covered-query). 2. Network traffic will be much lower.
+factors: 1. If a compound index exists (`key: { isDeleted: 1, _id: 1}`), MongoDB will not scan any document and will simply return documents only containing "_id", because it is in the index. In other words, this is a [covered query](https://www.mongodb.com/docs/manual/core/query-optimization/#covered-query). 2. Network traffic will be much lower.
 
 The 2nd method in the above code snippet is essentially similar to the following:
 
