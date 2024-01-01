@@ -2,6 +2,10 @@
 author: "Xingyue Li and Vishal Parikh"
 # description: "Some short description of your blog can go here." # This will show up in places like twitter, linkedin, etc, if you share your sites url as a post.
 
+date:
+  created: 2023-09-04 
+  updated: 2024-01-01
+
 # Email / Social media user names used by the minima theme:
 # All of these are optional and can be removed or commented out
 email: "xyli33@gmail.com"
