@@ -24,7 +24,7 @@ multiple pods using Kafka.
 ## Mixing MongoRepository and MongoTemplate
 
 Like any other Spring Data framework, Spring Data MongoDB provides MongoRepository for CRUD operations.
-Although saveAll() allows us to do bulk insert in an ideal situation (please seee the following code snippet), 
+Although saveAll() allows us to do bulk insert in an ideal situation (please see the following code snippet), 
 this method will upsert the items one by one if the primary key field ( annotated with @ID ) of any item is not 
 null. This causes significant performance downgrade. 
 As a result, in our project we decided to implement bulk upsert using MongoTemplate and to implement other CRUD 
@@ -33,17 +33,17 @@ operations in the Repository interface.
 ### saveAll() in Spring Data MongoDB:
 
 ```
-	public <S extends T> List<S> saveAll(Iterable<S> entities) {
-		Streamable<S> source = Streamable.of(entities);
-		boolean allNew = source.stream().allMatch(entityInformation::isNew);
+public <S extends T> List<S> saveAll(Iterable<S> entities) {
+  Streamable<S> source = Streamable.of(entities);
+  boolean allNew = source.stream().allMatch(entityInformation::isNew);
 
-		if (allNew) {
-			List<S> result = source.stream().collect(Collectors.toList());
-			return new ArrayList<>(mongoOperations.insert(result, entityInformation.getCollectionName()));
-		}
+  if (allNew) {
+    List<S> result = source.stream().collect(Collectors.toList());
+    return new ArrayList<>(mongoOperations.insert(result, entityInformation.getCollectionName()));
+  }
 
-		return source.stream().map(this::save).collect(Collectors.toList());
-	}
+  return source.stream().map(this::save).collect(Collectors.toList());
+}
 ```
 
 ### The Whole Picture of Our Implementation
@@ -161,7 +161,7 @@ The 2nd method in the above code snippet is essentially similar to the following
 db.product.updateMany( {"_id": {$in: [1234, 2234, 3234]}}, {$set: {"isDeleted": true}} )
 ```
 
-## Performance Improvement after Using Bulk Operations
+## Performance Improvement
 
 ### Benchmark tests
 
@@ -185,14 +185,14 @@ all the records, instead of bulk updating. On the other hand for our business re
 the records is even easier and faster. As a result, calling the 2nd method in the above ProductRepository 
 interface is the best choice.
 
-For the old implementation, if we need to soft delete N documents, we must call MongoDB 2 * N times. For our 
+With the old implementation, if we need to soft delete N documents, we must call MongoDB 2 * N times. For our 
 benchmark test, here N is 2864, but in reality N could easily become 50,000 or bigger. In contrast, in the new 
 implementation, we always call MongoDB once, no matter how many documents we need to soft delete.
 
 
-In addition to soft deleting documents, we also need to upsert documents. Now upserting documents can take 
-advantage of our bulk upsert implementation. The following table shows the test results for upserting and soft 
-deleting the same 2864 products:
+In addition to soft deleting documents, we also need to upsert documents. Now upserting can take advantage of our 
+bulk upsert implementation. The following table shows the test results for upserting and soft deleting the same 
+2864 products:
 
 Processing Time (in seconds)
 
@@ -207,7 +207,7 @@ Notes:
 
 - The Java application was running in our AWS DEV environment.
 - Each item in the above table is the average value of 3 tests.
-- For upserting documents with bulk operations, currently in order to get the 2864 documents we must call another 
+- For upserting with bulk operations, currently in order to get the 2864 documents we must call another 
  service 14 times to avoid the request containing more than 2048 characters. On an average, the 14 calls take 
  about 1.25 seconds. If we could get all 2864 documents with a single call, the improvement would be even better.
 
@@ -226,7 +226,7 @@ is the average of the 3 values.
 #### Discussion:
 1. From the above table and the previous one, we can see that bulk operations reduce network overhead 
  significantly. We also did some local tests using a remote free M0 MongoDB tier. The improvement was similar to 
- the above remote tests, with a little more improvements.
+ the above remote tests.
 
 2. For a Java application running on AWS, because the MongoDB is also on AWS, the network latency is smaller than
  a local Java – remote MongoDB scenario. As a result, the improvement falling between the local and the remote 
